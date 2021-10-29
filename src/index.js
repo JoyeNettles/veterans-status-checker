@@ -1,3 +1,3 @@
-import { IntroWhisper } from './whispers';
+import { VeteranStatusContainer } from './veteranStatusContainer';
 
-new IntroWhisper().show();
+new VeteranStatusContainer().show();
