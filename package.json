@@ -67,6 +67,13 @@
   },
   "ldk": {
     "permissions": {
+      "network": {
+        "urlDomains": [
+          {
+            "value": "*.va.gov"
+          }
+        ]
+      },
       "whisper": {}
     }
   }

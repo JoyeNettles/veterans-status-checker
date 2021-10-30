@@ -1,15 +1,26 @@
 import { whisper } from '@oliveai/ldk';
 import { DateTimeType } from '@oliveai/ldk/dist/whisper/types';
+import { vaService } from '../aptitudes';
 
 export default class VeteranStatusContainer {
   constructor() {
     this.whisper = undefined;
     this.label = 'Veteran Status Checker';
     this.props = {
-      newMessage: '',
-      numClones: 1,
-      label: '',
+      fName: '',
+      mName: '',
+      lName: '',
+      gender: '',
+      bday: '',
+      ssn: '',
     };
+  }
+
+  update(props) {
+    this.props = { ...this.props, ...props };
+    this.whisper.update({
+      components: this.createVeteranStatusFormComponents(),
+    });
   }
 
   createNameComponents() {
@@ -18,6 +29,7 @@ export default class VeteranStatusContainer {
       label: 'First Name*',
       onChange: (_error, val) => {
         console.log('Updating message text: ', val);
+        this.update({ fName: val });
       },
     };
     const mNameInput = {
@@ -25,6 +37,7 @@ export default class VeteranStatusContainer {
       label: 'Middle Name',
       onChange: (_error, val) => {
         console.log('Updating message text: ', val);
+        this.update({ mName: val });
       },
     };
     const lNameInput = {
@@ -32,6 +45,7 @@ export default class VeteranStatusContainer {
       label: 'Last Name*',
       onChange: (_error, val) => {
         console.log('Updating message text: ', val);
+        this.update({ lName: val });
       },
     };
     const nameRow = {
@@ -51,13 +65,17 @@ export default class VeteranStatusContainer {
     };
     const nameRow = this.createNameComponents();
 
+    const genderOptions = ['Prefer Not to Answer', 'Male', 'Female'];
     const genderInput = {
       type: whisper.WhisperComponentType.Select,
       label: 'Gender',
-      options: ['Prefer Not to Answer', 'Male', 'Female'],
+      options: genderOptions,
       selected: 0,
       onSelect: (_error, val) => {
         console.log('option selected: ', val);
+        if (val > 0) {
+          this.update({ gender: val === 1 ? 'M' : 'F' });
+        }
       },
     };
 
@@ -67,6 +85,7 @@ export default class VeteranStatusContainer {
       dateTimeType: DateTimeType.DateTime,
       onChange: (_error, val) => {
         console.log('Birthday changed: ', val);
+        this.update({ bday: val });
       },
     };
 
@@ -76,18 +95,40 @@ export default class VeteranStatusContainer {
       label: 'Social Security Number*',
       onChange: (_error, val) => {
         console.log('SSN changed: ', val);
+        this.update({ ssn: val });
       },
     };
 
     const submitButton = {
       type: whisper.WhisperComponentType.Button,
       label: 'Verify Status',
-      onClick: () => {
+      onClick: async () => {
         console.log('Submit Button Clicked');
+        await this.fetchStatus();
       },
     };
 
     return [requiredInfoHeader, nameRow, genderInput, birthdayInput, ssn, submitButton];
+  }
+
+  async fetchStatus() {
+    const { fName, mName, lName, gender, bday, ssn } = this.props;
+    console.log('PROPS', fName);
+
+    await vaService
+      .fetchVeteransStatus({
+        ssn,
+        gender,
+        last_name: lName,
+        birth_date: bday,
+        first_name: fName,
+        middle_name: mName,
+      })
+      .then((veteranStatus) => {
+        console.log('***SUCCESS***', veteranStatus);
+        // this.props.newMessage = veteranStatus;
+      })
+      .catch((e) => console.log('******ERROR******', e));
   }
 
   show() {
@@ -100,14 +141,6 @@ export default class VeteranStatusContainer {
       .then((newWhisper) => {
         this.whisper = newWhisper;
       });
-  }
-
-  update(props) {
-    this.props = { ...this.props, ...props };
-    this.whisper.update({
-      label: this.props.label || this.label,
-      components: this.createComponents(),
-    });
   }
 
   close() {

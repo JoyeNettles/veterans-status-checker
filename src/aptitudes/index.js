@@ -1,3 +1,3 @@
+import vaService from './network/vaService';
 
-export {
-};
+export { vaService };
