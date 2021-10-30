@@ -1,24 +1,10 @@
 import { network } from '@oliveai/ldk';
 import { oneLine } from 'common-tags';
-import { NetworkWhisper } from '../../whispers';
-import networkExample from './vaService';
+import vaService from './vaService';
 
 jest.mock('@oliveai/ldk');
 
-const mockNetworkShow = jest.fn();
-jest.mock('../../whispers', () => {
-  return {
-    NetworkWhisper: jest.fn().mockImplementation(() => {
-      return { show: mockNetworkShow };
-    }),
-  };
-});
-
-describe('Network Example', () => {
-  beforeAll(() => {
-    jest.useFakeTimers('modern');
-    jest.setSystemTime(new Date(2021, 0));
-  });
+describe('VA Service Call', () => {
   afterEach(() => {
     jest.clearAllMocks();
   });
@@ -26,30 +12,47 @@ describe('Network Example', () => {
     jest.useRealTimers();
   });
 
-  it('should make a network request and display the result with a whisper', async () => {
+  it('should make properly formatted network request and return veteran_status', async () => {
     const responseStub = {
       statusCode: 200,
-      body: new Uint8Array(),
+      body: { veteran_status: 'confirmed' },
       headers: {},
     };
-    const responseBodyStub = { results: [] };
+    const responseBodyStub = { veteran_status: 'confirmed' };
     network.httpRequest = jest.fn().mockResolvedValueOnce(responseStub);
     network.decode = jest.fn().mockResolvedValueOnce(JSON.stringify(responseBodyStub));
 
-    await networkExample.run();
+    const response = await vaService.fetchVeteransStatus({
+      first_name: 'Joye',
+    });
 
     expect(network.httpRequest).toBeCalledWith({
-      method: 'GET',
-      url: oneLine`
-      https://api.fda.gov/food/enforcement.json?search=report_date:[
-      20201001
-      +TO+
-      20210101
-      ]&limit=10
-      `,
+      method: 'POST',
+      url: oneLine`https://sandbox-api.va.gov/services/veteran_confirmation/v0/status`,
+      headers: {
+        apiKey: expect.arrayContaining([expect.any(String)]),
+        'Content-Type': expect.arrayContaining([expect.any(String)]),
+      },
+      body: expect.stringContaining('first_name'),
     });
+
     expect(network.decode).toBeCalledWith(responseStub.body);
-    expect(NetworkWhisper).toBeCalledWith(responseBodyStub.results);
-    expect(mockNetworkShow).toBeCalled();
+    expect(response).toBe('confirmed');
+  });
+
+  it('should make properly formatted network request and return undefined when no status found on response', async () => {
+    const responseStub = {
+      statusCode: 500,
+      headers: {},
+    };
+    const responseBodyStub = { something_else: 'blah' };
+    network.httpRequest = jest.fn().mockResolvedValueOnce(responseStub);
+    network.decode = jest.fn().mockResolvedValueOnce(JSON.stringify(responseBodyStub));
+
+    const response = await vaService.fetchVeteransStatus({
+      first_name: 'Joye',
+    });
+
+    expect(response).toBe(undefined);
   });
 });
